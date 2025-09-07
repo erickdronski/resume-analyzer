@@ -5,212 +5,224 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AI Resume Analyzer — Erick Dronski</title>
   <meta name="description" content="Upload your resume PDF and get a personalized 50+ point analysis with recruiter‑grade recommendations. Free and unlimited." />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { theme: { extend: { colors: { brand: { purple: '#8B5CF6', blue: '#3B82F6', ink: '#0b1220' } } } } }
-  </script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- NO TAILWIND. Pure CSS below -->
   <style>
-    html, body { background: radial-gradient(1200px 600px at 50% -100px, rgba(139,92,246,0.15), transparent 60%) #0b1220; color: #e6e9f5; }
-    .glass { backdrop-filter: blur(12px); background: rgba(15,23,42,0.6); border: 1px solid rgba(148,163,184,0.15); }
-    .ok  { color:#8B5CF6 }
-    .bad { color:#f43f5e }
+    :root{
+      --bg:#0b1220; --card:rgba(15,23,42,.6); --border:rgba(148,163,184,.15);
+      --text:#e6e9f5; --muted:#9aa3b2; --purple:#8B5CF6; --purple2:#a78bfa; --blue:#60a5fa;
+      --good:#8B5CF6; --bad:#ef4444;
+    }
+    html,body{height:100%}
+    body{margin:0;background:
+      radial-gradient(1200px 600px at 50% -100px, rgba(139,92,246,0.15), transparent 60%) var(--bg);
+      color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    .container{max-width:1080px;margin:0 auto;padding:0 24px}
+    .pill{display:inline-flex;gap:.5rem;align-items:center;border:1px solid rgba(196,181,253,.25);background:rgba(167,139,250,.12);padding:.4rem .9rem;border-radius:999px;color:#e9d5ff;font-size:.9rem}
+    h1{margin:20px 0 0;font-size:clamp(34px,6vw,64px);font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;gap:.5rem}
+    .title-gradient{background:linear-gradient(90deg,#e9d5ff,#a78bfa,#bfdbfe);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .lead{color:rgba(255,255,255,.82);font-size:1.1rem;max-width:800px}
+
+    .card{backdrop-filter:blur(12px);background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px}
+    .btn{appearance:none;border:0;border-radius:12px;padding:10px 16px;font-weight:600;cursor:pointer;transition:.15s;background:var(--purple);color:#0b1220}
+    .btn:hover{background:var(--purple2)}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn-ghost{background:rgba(139,92,246,.18);color:#e9d5ff}
+
+    .row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+    .dropzone{border:2px dashed rgba(167,139,250,.35);border-radius:16px;padding:24px;display:flex;gap:16px;align-items:center;justify-content:center;text-align:center}
+    .dropzone.highlight{border-color:#c4b5fd}
+    .muted{color:rgba(255,255,255,.6);font-size:.9rem}
+
+    .grid{display:grid;gap:24px}
+    @media(min-width:900px){.grid-3{grid-template-columns:1fr 1fr 1fr}.grid-2{grid-template-columns:1fr 1fr}}
+
+    .score-wrap{position:relative;width:140px;height:140px}
+    .score-wrap svg{display:block}
+    .score-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center}
+
+    .ok{color:var(--good)} .bad{color:var(--bad)}
+    .list{margin:0;padding-left:1.2rem}
+    .list li{margin:.35rem 0}
+
+    footer{border-top:1px solid var(--border);text-align:center;color:rgba(255,255,255,.6);padding:40px 0;margin-top:40px;font-size:.9rem}
+    .hidden{display:none}
   </style>
+  <!-- PDF.js loader primary (unpkg), fallback added later if needed -->
+  <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 </head>
-<body class="min-h-screen">
-  <header class="relative overflow-hidden">
-    <div class="mx-auto max-w-6xl px-6 pt-12 pb-8">
-      <div class="inline-flex items-center gap-2 rounded-full border border-purple-300/20 bg-purple-300/10 px-4 py-1 text-sm text-purple-200">
-        <span>⚡ Free & Unlimited</span><span class="opacity-50">•</span><span>Checks 50+ criteria</span><span class="opacity-50">•</span><span>Beat ATS & AI scanners</span>
-      </div>
-      <h1 class="mt-5 text-4xl md:text-6xl font-extrabold tracking-tight flex items-center gap-2">
-        <span class="text-purple-300 text-5xl">🧠</span>
-        <span class="bg-gradient-to-r from-purple-200 via-purple-400 to-blue-200 bg-clip-text text-transparent">AI Resume Analyzer</span>
-      </h1>
-      <p class="mt-4 max-w-3xl text-white/80 text-lg">Upload your resume and get a recruiter‑grade score out of 100 plus targeted fixes to <span class="font-semibold text-purple-200">improve your odds in the job market</span> and <span class="font-semibold text-blue-300">outcompete AI scanners</span>. Completely free. Unlimited runs.</p>
-      <div class="glass mt-8 rounded-2xl p-6">
-        <div id="dropZone" class="flex flex-col md:flex-row items-center gap-4 border-2 border-dashed border-purple-400/40 rounded-xl p-6 justify-center text-center">
-          <label for="fileInput" class="inline-flex items-center rounded-xl bg-purple-500/20 px-4 py-2 text-purple-200 hover:bg-purple-500/30 cursor-pointer">Browse files</label>
-          <input id="fileInput" type="file" accept="application/pdf,text/plain" class="sr-only" />
-          <span id="fileName" class="ml-3 text-sm text-white/60"></span>
-          <button id="analyzeBtn" class="rounded-xl bg-purple-400 text-black px-6 py-3 font-semibold hover:bg-purple-300 disabled:opacity-50" disabled>Analyze Resume</button>
+<body>
+  <header>
+    <div class="container" style="padding-top:48px;padding-bottom:18px">
+      <div class="pill">⚡ Free & Unlimited <span>•</span> Checks 50+ criteria <span>•</span> Beat ATS & AI scanners</div>
+      <h1><span style="font-size:48px">🧠</span><span class="title-gradient">AI Resume Analyzer</span></h1>
+      <p class="lead">Upload your resume and get a recruiter‑grade score out of 100 plus targeted fixes to <strong style="color:#e9d5ff">improve your odds in the job market</strong> and <strong style="color:#bfdbfe">outcompete AI scanners</strong>. Completely free. Unlimited runs.</p>
+
+      <div class="card" style="margin-top:20px">
+        <div id="dropZone" class="dropzone">
+          <label for="fileInput" class="btn btn-ghost">Browse files</label>
+          <input id="fileInput" type="file" accept="application/pdf,text/plain" style="position:absolute;opacity:0;pointer-events:none" />
+          <span id="fileName" class="muted"></span>
+          <button id="analyzeBtn" class="btn" disabled>Analyze Resume</button>
         </div>
-        <p class="mt-2 text-sm text-white/60">Supported: PDF (recommended) or plain .txt. Your file never leaves your browser.</p>
+        <p class="muted" style="margin-top:8px">Supported: PDF (recommended) or plain .txt. Your file never leaves your browser.</p>
       </div>
     </div>
   </header>
 
-  <main class="mx-auto max-w-6xl px-6 pb-24">
+  <main class="container" style="padding-bottom:64px">
     <section id="results" class="hidden">
-      <div class="grid md:grid-cols-3 gap-6 mt-10">
-        <div class="glass rounded-2xl p-6 flex items-center justify-center">
-          <div class="relative">
+      <div class="grid grid-3" style="margin-top:24px">
+        <div class="card" style="display:flex;align-items:center;justify-content:center">
+          <div class="score-wrap">
             <svg width="140" height="140" viewBox="0 0 140 140">
               <circle cx="70" cy="70" r="54" stroke="#334155" stroke-width="12" fill="none"></circle>
               <circle id="scoreArc" cx="70" cy="70" r="54" stroke="#8B5CF6" stroke-width="12" fill="none" stroke-linecap="round" stroke-dasharray="339.292" stroke-dashoffset="339.292"></circle>
             </svg>
-            <div class="absolute inset-0 flex items-center justify-center">
-              <div class="text-center"><div id="scoreLabel" class="text-3xl font-extrabold">0</div><div class="text-sm text-white/60">/100</div></div>
+            <div class="score-center">
+              <div>
+                <div id="scoreLabel" style="font-size:28px;font-weight:800">0</div>
+                <div class="muted" style="margin-top:-2px">/100</div>
+              </div>
             </div>
           </div>
         </div>
-        <div class="glass rounded-2xl p-6">
-          <div id="seniorityBadge" class="text-sm text-white/70">Seniority: —</div>
-          <div id="industryBadge" class="text-sm text-white/70">Industry: —</div>
-          <div id="interestBadge" class="text-sm text-white/70">Recruiter interest: —</div>
-          <h3 class="mt-4 font-semibold">Summary</h3>
-          <p id="summary" class="text-white/80 mt-1 text-sm"></p>
-          <div id="encouragement" class="mt-3 hidden text-emerald-300 text-sm">🎉 High-signal resume. You’re in the top tier—tighten tailoring and outcomes for an even stronger shot.</div>
+        <div class="card">
+          <div id="seniorityBadge" class="muted">Seniority: —</div>
+          <div id="industryBadge" class="muted">Industry: —</div>
+          <div id="interestBadge" class="muted">Recruiter interest: —</div>
+          <h3 style="margin:12px 0 6px;font-weight:700">Summary</h3>
+          <p id="summary" class="muted" style="color:rgba(255,255,255,.85)"></p>
+          <div id="encouragement" class="hidden" style="margin-top:10px;color:#86efac">🎉 High-signal resume. You’re in the top tier—tighten tailoring and outcomes for an even stronger shot.</div>
         </div>
-        <div class="glass rounded-2xl p-6">
-          <h3 class="font-semibold">Recruiter’s POV</h3>
-          <p id="recruiterPOV" class="text-white/80 mt-2 text-sm"></p>
-          <button id="downloadBtn" class="mt-6 rounded-xl bg-purple-400 text-black px-4 py-2 font-semibold hover:bg-purple-300">Download Report</button>
+        <div class="card">
+          <h3 style="font-weight:700">Recruiter’s POV</h3>
+          <p id="recruiterPOV" class="muted" style="color:rgba(255,255,255,.85);margin-top:8px"></p>
+          <button id="downloadBtn" class="btn" style="margin-top:16px">Download Report</button>
         </div>
       </div>
-      <div class="grid md:grid-cols-2 gap-6 mt-6">
-        <div class="glass rounded-2xl p-6"><h3 class="font-semibold">Priority Fixes</h3><ol id="topRecs" class="mt-3 list-decimal list-inside space-y-2 text-sm"></ol></div>
-        <div class="glass rounded-2xl p-6"><h3 class="font-semibold">50+ Point Checklist</h3><div id="checklist" class="mt-3 space-y-2 text-sm"></div></div>
+      <div class="grid grid-2" style="margin-top:24px">
+        <div class="card">
+          <h3 style="font-weight:700">Priority Fixes</h3>
+          <ol id="topRecs" class="list"></ol>
+        </div>
+        <div class="card">
+          <h3 style="font-weight:700">50+ Point Checklist</h3>
+          <div id="checklist"></div>
+        </div>
       </div>
     </section>
   </main>
 
-  <footer class="border-t border-white/10 py-10 text-center text-white/50 text-sm">Built for job seekers. Free & unlimited. Erick Dronski Portfolio.</footer>
+  <footer>Built for job seekers. Free & unlimited. Erick Dronski Portfolio.</footer>
 
-<script>
-  // Input + DnD
-  const fileInput = document.getElementById('fileInput');
-  const fileName  = document.getElementById('fileName');
-  const analyzeBtn = document.getElementById('analyzeBtn');
-  const dropZone = document.getElementById('dropZone');
-  fileInput.addEventListener('change', ()=>{ const f=fileInput.files&&fileInput.files[0]; if(f){ fileName.textContent='Selected: '+f.name; analyzeBtn.disabled=false; }});
-  ['dragenter','dragover'].forEach(evt=>dropZone.addEventListener(evt,(e)=>{e.preventDefault();dropZone.classList.add('border-purple-300/60');}));
-  ['dragleave','drop'].forEach(evt=>dropZone.addEventListener(evt,(e)=>{e.preventDefault();dropZone.classList.remove('border-purple-300/60');}));
-  dropZone.addEventListener('drop',(e)=>{ const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f){ fileInput.files=e.dataTransfer.files; fileInput.dispatchEvent(new Event('change')); }});
-  ['dragover','drop'].forEach(evt=>window.addEventListener(evt,e=>e.preventDefault()));
-</script>
+  <!-- Core wiring (input + DnD) -->
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const fileName  = document.getElementById('fileName');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const dropZone = document.getElementById('dropZone');
 
-<script>
-(()=>{
-  // PDF.js safe mode
-  if (window.pdfjsLib){ try{ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js'; if(typeof pdfjsLib.disableWorker==='boolean') pdfjsLib.disableWorker=true; }catch(e){} }
+    fileInput.addEventListener('change', () => {
+      const f = fileInput.files && fileInput.files[0];
+      if (f) { fileName.textContent = 'Selected: ' + f.name; analyzeBtn.disabled = false; }
+    });
+    ['dragenter','dragover'].forEach(evt=>dropZone.addEventListener(evt,(e)=>{e.preventDefault();dropZone.classList.add('highlight');}));
+    ['dragleave','drop'].forEach(evt=>dropZone.addEventListener(evt,(e)=>{e.preventDefault();dropZone.classList.remove('highlight');}));
+    dropZone.addEventListener('drop',(e)=>{ const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f){ fileInput.files = e.dataTransfer.files; fileInput.dispatchEvent(new Event('change')); }});
+    ['dragover','drop'].forEach(evt => window.addEventListener(evt, e => e.preventDefault()));
+  </script>
 
-  async function fileToText(file){
-    if(!file) throw new Error('No file');
-    const isPdf = (file.name||'').toLowerCase().endsWith('.pdf') || ((file.type||'').indexOf('pdf')!==-1);
-    if(isPdf && window.pdfjsLib){
-      try{
-        const buf=await file.arrayBuffer();
-        const pdf=await pdfjsLib.getDocument({data:buf}).promise;
-        let text='';
-        for(let p=1;p<=pdf.numPages;p++){ const page=await pdf.getPage(p); const c=await page.getTextContent(); for(const it of c.items){ text+=it.str+' '; } text+='
-'; }
-        if(text.trim().length>5) return text;
-      }catch(e){ /* fallback to txt */ }
-    }
-    return await file.text();
-  }
+  <!-- Analyzer + Report (pure JS) -->
+  <script>
+  (function(){
+    // PDF.js configuration and fallback loader
+    function setWorker(){ try{ if(window.pdfjsLib && pdfjsLib.GlobalWorkerOptions){ pdfjsLib.GlobalWorkerOptions.workerSrc='https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js'; if(typeof pdfjsLib.disableWorker==='boolean') pdfjsLib.disableWorker=true; } }catch(e){} }
+    if(!window.pdfjsLib){ const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'; s.onload=setWorker; document.head.appendChild(s);} else { setWorker(); }
 
-  // Helpers without regex backslashes that upset the canvas engine
-  function includesWord(t, w){ return (t||'').toLowerCase().indexOf(w)>=0; }
-  function containsAny(t, arr){ t=(t||'').toLowerCase(); for(const w of arr){ if(t.indexOf(w)!==-1) return true; } return false; }
-  function hasDigits(t){ for(const ch of (t||'')){ if(ch>='0'&&ch<='9') return true; } return false; }
-  function hasMetric(t){ if(!hasDigits(t)) return false; const u=['%','$','users','customers','revenue','growth','roi','leads','transactions','latency','speed','hours','k','m','x']; t=(t||'').toLowerCase(); for(const x of u){ if(t.indexOf(x)!==-1) return true; } return false; }
-  function capsOveruse(t){ const words=(t||'').split(' '); let caps=0; for(const w of words){ let hasAZ=false; for(const ch of w){ if(ch>='A'&&ch<='Z'){ hasAZ=true; break; } } if(w.length>4 && hasAZ && w===w.toUpperCase()) caps++; } return caps>30; }
-  function seniority(text){ const toks=(text||'').toLowerCase().split(/[^a-z0-9+.#-]+/); let yrs=0; for(let i=0;i<toks.length;i++){ if(toks[i]==='years'||toks[i]==='yrs'){ const n=parseInt(toks[i-1],10); if(!isNaN(n)) yrs=Math.max(yrs,n); } } if(yrs>=12) return 'executive'; if(yrs>=7) return 'senior'; if(yrs>=3) return 'mid'; return 'junior'; }
-  function industry(text){ const K={software:['javascript','python','react','node','api','aws','docker','kubernetes','sql','ml','ai'],data:['data','analytics','etl','warehouse','dbt','spark','tableau'],finance:['fintech','cfa','risk','valuation','portfolio','trading'],marketing:['seo','sem','campaign','crm','engagement'],healthcare:['clinical','ehr','hipaa','trial'],design:['figma','ux','ui','wireframe']}; const t=(text||'').toLowerCase(); let best='general',hits=0; for(const k in K){ const ws=K[k]; let c=0; for(const w of ws){ if(t.indexOf(w)!==-1) c++; } if(c>hits){hits=c;best=k;} } return best; }
-
-  const ACTION=['led','built','created','launched','designed','implemented','delivered','optimized','deployed','improved','increased','reduced','scaled','migrated','automated','spearheaded','managed','owned','drove','analyzed','developed','mentored'];
-  const SOFT={leadership:['led','managed','mentored','owned','spearheaded','director','head of'],teamwork:['collaborated','partnered','cross-functional','stakeholders'],problem:['solved','debugged','root cause','postmortem','incident']};
-
-  const CRIT=[]; const add=(l,w,ch,r)=>CRIT.push({label:l,weight:w,check:ch,rec:r});
-  add('Has contact info (email/phone)',3,c=>includesWord(c.t,'@')||c.t.replace(/[^0-9]/g,'').length>=7,'Add email & phone in header.');
-  add('LinkedIn/portfolio link',2,c=>includesWord(c.t,'linkedin.com')||includesWord(c.t,'github.com')||includesWord(c.t,'portfolio'),'Link LinkedIn/portfolio.');
-  add('Concise professional summary',2,c=>includesWord(c.t,'summary')||includesWord(c.t,'objective')||includesWord(c.t,'profile'),'Add a 2–3 sentence value summary.');
-  add('Clear sections',3,c=>includesWord(c.t,'experience')&&includesWord(c.t,'education')&&includesWord(c.t,'skills'),'Use standard sections.');
-  add('Uses bullet points',2,c=>c.t.indexOf('•')!==-1||c.t.indexOf('- ')!==-1,'Use bullets for scannability.');
-  add('1–2 pages max',2,c=>c.pages<=2,'Keep to 1 page (junior) or 1–2 (senior).');
-  add('ATS-safe formatting',2,c=>!(includesWord(c.t,'table')||includesWord(c.t,'headshot')||includesWord(c.t,'photo')),'Avoid tables/images/headshots.');
-  add('Includes metrics/quant results',4,c=>hasMetric(c.t),'Quantify results (%, $, time saved).');
-  add('Strong action verbs',3,c=>containsAny(c.t,ACTION),'Lead bullets with strong verbs.');
-  add('Focus on achievements over responsibilities',2,c=>!(includesWord(c.t,'responsible for')||includesWord(c.t,'duties include')),'Rephrase to outcomes.');
-  add('Leadership signals present',1,c=>containsAny(c.t,SOFT.leadership),'Show leadership (mentored/led/owned).');
-  add('Teamwork signals',1,c=>containsAny(c.t,SOFT.teamwork),'Mention partners & stakeholders.');
-  add('Problem-solving signals',1,c=>containsAny(c.t,SOFT.problem),'Describe diagnosis & fix.');
-  add('Avoid ALL-CAPS overuse',1,c=>!capsOveruse(c.t),'Reserve ALL-CAPS for headings.');
-  add('Dedicated Skills section',2,c=>includesWord(c.t,'skills'),'Add a curated Skills section.');
-  add('Each role has dates',2,c=>c.t.indexOf('20')!==-1,'Add month/year ranges.');
-  add('Education listed',1,c=>includesWord(c.t,'education')||includesWord(c.t,'bachelor')||includesWord(c.t,'master')||includesWord(c.t,'university')||includesWord(c.t,'degree'),'Add education (degree/school).');
-  add('Low typo risk',3,c=>{ const parts=c.t.split(' '); let weird=0; for(const w of parts){ if(w.length>20){ let ok=true; for(const ch of w){ const isOk = (ch==='_'||ch==='@'||ch==='.'||ch===','||ch==='&'||ch==='-'||(ch>='0'&&ch<='9')||(ch>='A'&&ch<='Z')||(ch>='a'&&ch<='z')); if(!isOk){ ok=false; break; } } if(!ok) weird++; } } return weird<10; },'Run a spell/grammar pass.');
-
-  function analyze(text,file){
-    const ctx={ t:text||'', pages:(text.split('').length), name:file&&file.name };
-    let score=100; const results=[];
-    for(const c of CRIT){ const pass=!!c.check(ctx); if(!pass) score-=c.weight; results.push({label:c.label,pass,rec:c.rec,weight:c.weight}); }
-    if(score<0) score=0; if(score>100) score=100;
-    const failed=results.filter(r=>!r.pass).sort((a,b)=>b.weight-a.weight).slice(0,8);
-    const wins=results.filter(r=>r.pass).slice(0,5).map(r=>r.label);
-    const sen=seniority(text); const ind=industry(text);
-    const interest = score>=90?5:score>=80?4:score>=70?3:score>=60?2:1;
-    const summary='Your resume is calibrated for a '+sen+' '+ind+' candidate. We analyzed '+CRIT.length+'+ signals across structure, clarity, impact, skills, soft skills, and ATS compatibility.';
-    const pov=(score>=90?('“High‑signal '+sen+' '+ind+'. Shortlist material. What shines: '+wins.join(', ')+'. Next: tailor to top role priorities and add 1–2 business outcomes.”'):
-               score>=75?('“Strong '+sen+' '+ind+'. Interview likely. What shines: '+wins.join(', ')+'. Next: tighten metrics and alignment.”'):
-               score>=60?('“Promising foundation. Clarify impact with numbers and improve formatting for quick scan.”'):
-                          '“Key elements are missing. Fix fundamentals (contact, sections, quantified results) to get traction.”');
-    return {score,failed,wins,summary,sen,ind,interest,pov,results};
-  }
-
-  const resultsEl=document.getElementById('results');
-  const sArc=document.getElementById('scoreArc');
-  const sLab=document.getElementById('scoreLabel');
-  const badges={sen:document.getElementById('seniorityBadge'),ind:document.getElementById('industryBadge'),interest:document.getElementById('interestBadge')};
-
-  document.getElementById('analyzeBtn').addEventListener('click', async ()=>{
-    const f=fileInput.files&&fileInput.files[0]; if(!f){ alert('Please choose a PDF or TXT file first.'); return; }
-    analyzeBtn.disabled=true; analyzeBtn.textContent='Analyzing…';
-    try{
-      const text=await fileToText(f); const r=analyze(text,f);
-      resultsEl.classList.remove('hidden'); const C=339.292; if(sArc) sArc.style.strokeDashoffset=String(C*(1-r.score/100)); if(sLab) sLab.textContent=String(Math.round(r.score));
-      if(badges.sen) badges.sen.textContent='Seniority: '+r.sen; if(badges.ind) badges.ind.textContent='Industry: '+r.ind; if(badges.interest) badges.interest.textContent='Recruiter interest: '+r.interest+'/5';
-      document.getElementById('summary').textContent=r.summary; document.getElementById('recruiterPOV').textContent=r.pov; const encour=document.getElementById('encouragement'); if(encour) encour.classList.toggle('hidden', r.score<90);
-      const top=document.getElementById('topRecs'); top.innerHTML=''; r.failed.forEach(it=>{ const li=document.createElement('li'); li.innerHTML='<span class="font-semibold">'+it.label+'</span> — '+it.rec; top.appendChild(li); });
-      const list=document.getElementById('checklist'); list.innerHTML=''; r.results.forEach(it=>{ const div=document.createElement('div'); div.className='flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3'; div.innerHTML='<div class="mt-1 '+(it.pass?'ok':'bad')+'">'+(it.pass?'✔':'✖')+'</div><div><div class="font-medium">'+it.label+'</div><div class="text-sm text-white/70">'+(it.pass?'Looks good.':it.rec)+'</div></div>'; list.appendChild(div); });
-      document.getElementById('downloadBtn').onclick=()=>{ const html='<!doctype html><html><head><meta charset="utf-8"><title>AI Resume Report</title><style>body{font-family:system-ui,Segoe UI,Arial;max-width:900px;margin:40px auto;background:#0b1220;color:#e6e9f5} .card{background:#111827;padding:16px;border-radius:14px;margin:10px 0;border:1px solid #334155} .ok{color:#8B5CF6}.bad{color:#ef4444} .muted{color:#a3a3a3}</style></head><body><h1>AI Resume Analyzer — Report</h1><div class="muted">Score: <b>'+Math.round(r.score)+'</b>/100 • Interest: '+r.interest+'/5 • Seniority: '+r.sen+' • Industry: '+r.ind+'</div><div class="card"><h3>Recruiter’s POV</h3><blockquote>'+r.pov+'</blockquote></div><div class="card"><h3>Summary</h3><p>'+r.summary+'</p>'+((r.score>=90)?'<p><b>Encouragement:</b> You’re very close to best‑in‑stack. Add business outcomes and leadership signals to seal it.</p>':'')+'</div><div class="card"><h3>Priority Fixes</h3><ol>'+r.failed.map(x=>'<li><b>'+x.label+':</b> '+x.rec+'</li>').join('')+'</ol></div><div class="card"><h3>Checklist</h3>'+r.results.map(x=>'<div><span class="'+(x.pass?'ok':'bad')+'">'+(x.pass?'✔':'✖')+'</span> '+x.label+(x.pass?'':' — '+x.rec)+'</div>').join('')+'</div><p class="muted">Generated locally in your browser. Re‑run after edits to watch your score rise.</p><script>
-// PDF.js post-load normalizer and fallback injector
-(function(){
-  function setWorker(){
-    try{
-      if (window.pdfjsLib && pdfjsLib.GlobalWorkerOptions){
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-        if (typeof pdfjsLib.disableWorker === 'boolean') pdfjsLib.disableWorker = true; // safest for Safari/CORS
-        console.log('[pdfjs] worker configured');
+    async function fileToText(file){
+      if(!file) throw new Error('No file');
+      const isPdf = /\.pdf$/i.test(file.name) || (file.type||'').includes('pdf');
+      if(isPdf && window.pdfjsLib){
+        try{
+          const buf=await file.arrayBuffer();
+          const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+          let text='';
+          for(let p=1;p<=pdf.numPages;p++){ const page=await pdf.getPage(p); const c=await page.getTextContent(); for(const it of c.items){ text+=it.str+' '; } text+='\n'; }
+          if(text.trim().length>5) return text;
+        }catch(e){ /* fall back to txt */ }
       }
-    }catch(e){ console.warn('[pdfjs] worker config failed', e); }
-  }
-  if (!window.pdfjsLib){
-    var s=document.createElement('script');
-    s.src='https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js';
-    s.onload=function(){ console.log('[pdfjs] loaded via unpkg'); setWorker(); };
-    s.onerror=function(){
-      var s2=document.createElement('script');
-      s2.src='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
-      s2.onload=function(){ console.log('[pdfjs] loaded via jsDelivr'); setWorker(); };
-      s2.onerror=function(){ console.warn('[pdfjs] could not load from any CDN; PDFs will need to be text-based (.txt).'); };
-      document.head.appendChild(s2);
-    };
-    document.head.appendChild(s);
-  } else {
-    setWorker();
-  }
-})();
-</script>
-</body>
-</html>'; const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='AI_Resume_Report.html'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); };
-      window.scrollTo({ top: resultsEl.offsetTop - 20, behavior: 'smooth' });
-    }catch(err){ console.error(err); alert('Analyze failed. If this was a scanned PDF (image‑only), export a text‑based PDF or upload .txt.'); }
-    finally{ analyzeBtn.disabled=false; analyzeBtn.textContent='Analyze Resume'; }
-  });
-})();
-</script>
+      return await file.text();
+    }
+
+    // --- Heuristics and library ---
+    const ACTION=['led','built','created','launched','designed','implemented','delivered','optimized','deployed','improved','increased','reduced','scaled','migrated','automated','spearheaded','managed','owned','drove','analyzed','developed','mentored'];
+    const SOFT={leadership:['led','managed','mentored','owned','spearheaded','director','head of'],teamwork:['collaborated','partnered','cross-functional','stakeholders'],problem:['solved','debugged','root cause','postmortem','incident']};
+    function containsAny(t,arr){ t=(t||'').toLowerCase(); for(const w of arr){ if(t.indexOf(w)!==-1) return true; } return false; }
+    function hasDigits(t){ for(const ch of (t||'')){ if(ch>='0'&&ch<='9') return true; } return false; }
+    function hasMetric(t){ if(!hasDigits(t)) return false; const u=['%','$','users','customers','revenue','growth','roi','leads','transactions','latency','speed','hours','k','m','x']; t=(t||'').toLowerCase(); for(const x of u){ if(t.indexOf(x)!==-1) return true; } return false; }
+    function capsOveruse(t){ const words=(t||'').split(' '); let caps=0; for(const w of words){ let hasAZ=false; for(const ch of w){ if(ch>='A'&&ch<='Z'){ hasAZ=true; break; } } if(w.length>4 && hasAZ && w===w.toUpperCase()) caps++; } return caps>30; }
+    function seniority(text){ const toks=(text||'').toLowerCase().split(/[^a-z0-9+.#-]+/); let yrs=0; for(let i=0;i<toks.length;i++){ if(toks[i]==='years'||toks[i]==='yrs'){ const n=parseInt(toks[i-1],10); if(!isNaN(n)) yrs=Math.max(yrs,n); } } if(yrs>=12)return'executive'; if(yrs>=7)return'senior'; if(yrs>=3)return'mid'; return'junior'; }
+    function industry(text){ const K={software:['javascript','python','react','node','api','aws','docker','kubernetes','sql','ml','ai'],data:['data','analytics','etl','warehouse','dbt','spark','tableau'],finance:['fintech','cfa','risk','valuation','portfolio','trading'],marketing:['seo','sem','campaign','crm','engagement'],healthcare:['clinical','ehr','hipaa','trial'],design:['figma','ux','ui','wireframe']}; const t=(text||'').toLowerCase(); let best='general',hits=0; for(const k in K){ const ws=K[k]; let c=0; for(const w of ws){ if(t.indexOf(w)!==-1) c++; } if(c>hits){hits=c;best=k;} } return best; }
+
+    const CRIT=[]; const add=(l,w,ch,r)=>CRIT.push({label:l,weight:w,check:ch,rec:r});
+    add('Has contact info (email/phone)',3,c=>c.t.indexOf('@')>-1||c.t.replace(/[^0-9]/g,'').length>=7,'Add email & phone in header.');
+    add('LinkedIn/portfolio link',2,c=>/linkedin\.com|github\.com|portfolio/i.test(c.t),'Link LinkedIn/portfolio.');
+    add('Concise professional summary',2,c=>/summary|objective|profile/i.test(c.t),'Add a 2–3 sentence value summary.');
+    add('Clear sections',3,c=>/experience/i.test(c.t)&&/education/i.test(c.t)&&/skills/i.test(c.t),'Use standard sections.');
+    add('Uses bullet points',2,c=>/[•\-]/.test(c.t),'Use bullets for scannability.');
+    add('1–2 pages max',2,c=>c.pages<=2,'Keep to 1 page (junior) or 1–2 (senior).');
+    add('ATS-safe formatting',2,c=>!/table|headshot|photo/i.test(c.t),'Avoid tables/images/headshots.');
+    add('Includes metrics/quant results',4,c=>hasMetric(c.t),'Quantify results (%, $, time saved).');
+    add('Strong action verbs',3,c=>containsAny(c.t,ACTION),'Lead bullets with strong verbs.');
+    add('Focus on achievements over responsibilities',2,c=>!/(responsible for|duties include)/i.test(c.t),'Rephrase to outcomes.');
+    add('Leadership signals present',1,c=>containsAny(c.t,SOFT.leadership),'Show leadership (mentored/led/owned).');
+    add('Teamwork signals',1,c=>containsAny(c.t,SOFT.teamwork),'Mention partners & stakeholders.');
+    add('Problem‑solving signals',1,c=>containsAny(c.t,SOFT.problem),'Describe diagnosis & fix.');
+    add('Avoid ALL‑CAPS overuse',1,c=>!capsOveruse(c.t),'Reserve ALL‑CAPS for headings.');
+    add('Dedicated Skills section',2,c=>/\bskills\b/i.test(c.t),'Add a curated Skills section.');
+    add('Each role has dates',2,c=>/(20\d{2}|201\d)/.test(c.t),'Add month/year ranges.');
+    add('Education listed',1,c=>/education|bachelor|master|university|degree/i.test(c.t),'Add education (degree/school).');
+    add('Low typo risk',3,c=>{ const parts=c.t.split(' '); let weird=0; for(const w of parts){ if(w.length>20 && /[^\w@.&,%\-]/.test(w)) weird++; } return weird<10; },'Run a spell/grammar pass.');
+
+    function analyze(text,file){
+      const ctx={ t:text||'', pages:(text.split('\f').length), name:file&&file.name };
+      let score=100; const results=[];
+      for(const c of CRIT){ const pass=!!c.check(ctx); if(!pass) score-=c.weight; results.push({label:c.label,pass,rec:c.rec,weight:c.weight}); }
+      if(score<0) score=0; if(score>100) score=100;
+      const failed=results.filter(r=>!r.pass).sort((a,b)=>b.weight-a.weight).slice(0,8);
+      const wins=results.filter(r=>r.pass).slice(0,5).map(r=>r.label);
+      const sen=seniority(text); const ind=industry(text);
+      const interest=score>=90?5:score>=80?4:score>=70?3:score>=60?2:1;
+      const summary='Your resume is calibrated for a '+sen+' '+ind+' candidate. We analyzed '+CRIT.length+'+ signals across structure, clarity, impact, skills, soft skills, and ATS compatibility.';
+      const pov=(score>=90?('“High‑signal '+sen+' '+ind+'. Shortlist material. What shines: '+wins.join(', ')+'. Next: tailor to top role priorities and add 1–2 business outcomes.”'):
+                 score>=75?('“Strong '+sen+' '+ind+'. Interview likely. What shines: '+wins.join(', ')+'. Next: tighten metrics and alignment.”'):
+                 score>=60?('“Promising foundation. Clarify impact with numbers and improve formatting for quick scan.”'):
+                            '“Key elements are missing. Fix fundamentals (contact, sections, quantified results) to get traction.”');
+      return {score,failed,wins,summary,sen,ind,interest,pov,results};
+    }
+
+    // --- UI binder ---
+    const resultsEl=document.getElementById('results');
+    const sArc=document.getElementById('scoreArc');
+    const sLab=document.getElementById('scoreLabel');
+    const badges={sen:document.getElementById('seniorityBadge'),ind:document.getElementById('industryBadge'),interest:document.getElementById('interestBadge')};
+
+    document.getElementById('analyzeBtn').addEventListener('click', async ()=>{
+      const f=fileInput.files&&fileInput.files[0]; if(!f){ alert('Please choose a PDF or TXT file first.'); return; }
+      analyzeBtn.disabled=true; analyzeBtn.textContent='Analyzing…';
+      try{
+        const text=await fileToText(f); const r=analyze(text,f);
+        resultsEl.classList.remove('hidden'); const C=339.292; if(sArc) sArc.style.strokeDashoffset=String(C*(1-r.score/100)); if(sLab) sLab.textContent=String(Math.round(r.score));
+        if(badges.sen) badges.sen.textContent='Seniority: '+r.sen; if(badges.ind) badges.ind.textContent='Industry: '+r.ind; if(badges.interest) badges.interest.textContent='Recruiter interest: '+r.interest+'/5';
+        document.getElementById('summary').textContent=r.summary; document.getElementById('recruiterPOV').textContent=r.pov; const encour=document.getElementById('encouragement'); if(encour) encour.classList.toggle('hidden', r.score<90);
+        const top=document.getElementById('topRecs'); top.innerHTML=''; r.failed.forEach(it=>{ const li=document.createElement('li'); li.innerHTML='<strong>'+it.label+'</strong> — '+it.rec; top.appendChild(li); });
+        const list=document.getElementById('checklist'); list.innerHTML=''; r.results.forEach(it=>{ const div=document.createElement('div'); div.style.cssText='display:flex;gap:12px;align-items:flex-start;border:1px solid var(--border);background:rgba(255,255,255,.04);padding:12px;border-radius:12px'; div.innerHTML='<div class="'+(it.pass?'ok':'bad')+'" style="margin-top:2px">'+(it.pass?'✔':'✖')+'</div><div><div style="font-weight:600">'+it.label+'</div><div class="muted">'+(it.pass?'Looks good.':it.rec)+'</div></div>'; list.appendChild(div); });
+        const dl=document.getElementById('downloadBtn'); dl.onclick=()=>{ const html='<!doctype html><html><head><meta charset="utf-8"><title>AI Resume Report</title><style>body{font-family:system-ui,Segoe UI,Arial;max-width:900px;margin:40px auto;background:#0b1220;color:#e6e9f5} .card{background:#111827;padding:16px;border-radius:14px;margin:10px 0;border:1px solid #334155} .ok{color:#8B5CF6}.bad{color:#ef4444} .muted{color:#a3a3a3}</style></head><body><h1>AI Resume Analyzer — Report</h1><div class="muted">Score: <b>'+Math.round(r.score)+'</b>/100 • Interest: '+r.interest+'/5 • Seniority: '+r.sen+' • Industry: '+r.ind+'</div><div class="card"><h3>Recruiter’s POV</h3><blockquote>'+r.pov+'</blockquote></div><div class="card"><h3>Summary</h3><p>'+r.summary+'</p>'+((r.score>=90)?'<p><b>Encouragement:</b> You’re very close to best‑in‑stack. Add business outcomes and leadership signals to seal it.</p>':'')+'</div><div class="card"><h3>Priority Fixes</h3><ol>'+r.failed.map(x=>'<li><b>'+x.label+':</b> '+x.rec+'</li>').join('')+'</ol></div><div class="card"><h3>Checklist</h3>'+r.results.map(x=>'<div><span class="'+(x.pass?'ok':'bad')+'">'+(x.pass?'✔':'✖')+'</span> '+x.label+(x.pass?'':' — '+x.rec)+'</div>').join('')+'</div><p class="muted">Generated locally in your browser. Re‑run after edits to watch your score rise.</p></body></html>'; const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='AI_Resume_Report.html'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); };
+        window.scrollTo({ top: resultsEl.offsetTop - 20, behavior: 'smooth' });
+      }catch(err){ console.error(err); alert('Analyze failed. If this was a scanned PDF (image‑only), export a text‑based PDF or upload .txt.'); }
+      finally{ analyzeBtn.disabled=false; analyzeBtn.textContent='Analyze Resume'; }
+    });
+  })();
+  </script>
 </body>
 </html>
