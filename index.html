@@ -175,7 +175,37 @@
       document.getElementById('summary').textContent=r.summary; document.getElementById('recruiterPOV').textContent=r.pov; const encour=document.getElementById('encouragement'); if(encour) encour.classList.toggle('hidden', r.score<90);
       const top=document.getElementById('topRecs'); top.innerHTML=''; r.failed.forEach(it=>{ const li=document.createElement('li'); li.innerHTML='<span class="font-semibold">'+it.label+'</span> — '+it.rec; top.appendChild(li); });
       const list=document.getElementById('checklist'); list.innerHTML=''; r.results.forEach(it=>{ const div=document.createElement('div'); div.className='flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3'; div.innerHTML='<div class="mt-1 '+(it.pass?'ok':'bad')+'">'+(it.pass?'✔':'✖')+'</div><div><div class="font-medium">'+it.label+'</div><div class="text-sm text-white/70">'+(it.pass?'Looks good.':it.rec)+'</div></div>'; list.appendChild(div); });
-      document.getElementById('downloadBtn').onclick=()=>{ const html='<!doctype html><html><head><meta charset="utf-8"><title>AI Resume Report</title><style>body{font-family:system-ui,Segoe UI,Arial;max-width:900px;margin:40px auto;background:#0b1220;color:#e6e9f5} .card{background:#111827;padding:16px;border-radius:14px;margin:10px 0;border:1px solid #334155} .ok{color:#8B5CF6}.bad{color:#ef4444} .muted{color:#a3a3a3}</style></head><body><h1>AI Resume Analyzer — Report</h1><div class="muted">Score: <b>'+Math.round(r.score)+'</b>/100 • Interest: '+r.interest+'/5 • Seniority: '+r.sen+' • Industry: '+r.ind+'</div><div class="card"><h3>Recruiter’s POV</h3><blockquote>'+r.pov+'</blockquote></div><div class="card"><h3>Summary</h3><p>'+r.summary+'</p>'+((r.score>=90)?'<p><b>Encouragement:</b> You’re very close to best‑in‑stack. Add business outcomes and leadership signals to seal it.</p>':'')+'</div><div class="card"><h3>Priority Fixes</h3><ol>'+r.failed.map(x=>'<li><b>'+x.label+':</b> '+x.rec+'</li>').join('')+'</ol></div><div class="card"><h3>Checklist</h3>'+r.results.map(x=>'<div><span class="'+(x.pass?'ok':'bad')+'">'+(x.pass?'✔':'✖')+'</span> '+x.label+(x.pass?'':' — '+x.rec)+'</div>').join('')+'</div><p class="muted">Generated locally in your browser. Re‑run after edits to watch your score rise.</p></body></html>'; const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='AI_Resume_Report.html'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); };
+      document.getElementById('downloadBtn').onclick=()=>{ const html='<!doctype html><html><head><meta charset="utf-8"><title>AI Resume Report</title><style>body{font-family:system-ui,Segoe UI,Arial;max-width:900px;margin:40px auto;background:#0b1220;color:#e6e9f5} .card{background:#111827;padding:16px;border-radius:14px;margin:10px 0;border:1px solid #334155} .ok{color:#8B5CF6}.bad{color:#ef4444} .muted{color:#a3a3a3}</style></head><body><h1>AI Resume Analyzer — Report</h1><div class="muted">Score: <b>'+Math.round(r.score)+'</b>/100 • Interest: '+r.interest+'/5 • Seniority: '+r.sen+' • Industry: '+r.ind+'</div><div class="card"><h3>Recruiter’s POV</h3><blockquote>'+r.pov+'</blockquote></div><div class="card"><h3>Summary</h3><p>'+r.summary+'</p>'+((r.score>=90)?'<p><b>Encouragement:</b> You’re very close to best‑in‑stack. Add business outcomes and leadership signals to seal it.</p>':'')+'</div><div class="card"><h3>Priority Fixes</h3><ol>'+r.failed.map(x=>'<li><b>'+x.label+':</b> '+x.rec+'</li>').join('')+'</ol></div><div class="card"><h3>Checklist</h3>'+r.results.map(x=>'<div><span class="'+(x.pass?'ok':'bad')+'">'+(x.pass?'✔':'✖')+'</span> '+x.label+(x.pass?'':' — '+x.rec)+'</div>').join('')+'</div><p class="muted">Generated locally in your browser. Re‑run after edits to watch your score rise.</p><script>
+// PDF.js post-load normalizer and fallback injector
+(function(){
+  function setWorker(){
+    try{
+      if (window.pdfjsLib && pdfjsLib.GlobalWorkerOptions){
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+        if (typeof pdfjsLib.disableWorker === 'boolean') pdfjsLib.disableWorker = true; // safest for Safari/CORS
+        console.log('[pdfjs] worker configured');
+      }
+    }catch(e){ console.warn('[pdfjs] worker config failed', e); }
+  }
+  if (!window.pdfjsLib){
+    var s=document.createElement('script');
+    s.src='https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js';
+    s.onload=function(){ console.log('[pdfjs] loaded via unpkg'); setWorker(); };
+    s.onerror=function(){
+      var s2=document.createElement('script');
+      s2.src='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+      s2.onload=function(){ console.log('[pdfjs] loaded via jsDelivr'); setWorker(); };
+      s2.onerror=function(){ console.warn('[pdfjs] could not load from any CDN; PDFs will need to be text-based (.txt).'); };
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s);
+  } else {
+    setWorker();
+  }
+})();
+</script>
+</body>
+</html>'; const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='AI_Resume_Report.html'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); };
       window.scrollTo({ top: resultsEl.offsetTop - 20, behavior: 'smooth' });
     }catch(err){ console.error(err); alert('Analyze failed. If this was a scanned PDF (image‑only), export a text‑based PDF or upload .txt.'); }
     finally{ analyzeBtn.disabled=false; analyzeBtn.textContent='Analyze Resume'; }
